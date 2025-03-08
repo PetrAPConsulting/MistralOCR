@@ -7,7 +7,7 @@ import urllib.request
 from mistralai import Mistral
 
 # Replace this with your actual API key
-MISTRAL_API_KEY = "mistral_api_key_here"
+MISTRAL_API_KEY = "your_api_key_here"
 
 def process_ocr_response(response_dict, base_name):
     """
@@ -24,8 +24,8 @@ def process_ocr_response(response_dict, base_name):
     image_dir = f"{base_name}_images"
     has_images = False
     
-    # Check if the response contains images
-    for page_idx, page in enumerate(response_dict.get('pages', [])):
+    # Check if the response contains images - structure based on API documentation
+    for page in response_dict.get('pages', []):
         if page.get('images') and len(page.get('images', [])) > 0:
             has_images = True
             break
@@ -35,7 +35,8 @@ def process_ocr_response(response_dict, base_name):
         print(f"  Created image directory: {image_dir}")
     
     # Process each page to extract markdown and handle images
-    content = ""
+    all_content = []
+    
     for page_idx, page in enumerate(response_dict.get('pages', [])):
         page_markdown = page.get('markdown', '')
         page_images = page.get('images', [])
@@ -44,50 +45,54 @@ def process_ocr_response(response_dict, base_name):
         if page_images:
             print(f"  Found {len(page_images)} images on page {page_idx + 1}")
             
+            # Create a dictionary to map image IDs to their base64 data
+            image_data_dict = {}
+            
             for img_idx, image in enumerate(page_images):
-                # Extract image data (assuming base64 encoded or URL)
-                image_data = image.get('data')
+                # Get image ID and base64 data
+                image_id = image.get('id')
+                image_base64 = image.get('image_base64')
+                
+                if not image_id or not image_base64:
+                    print(f"  Warning: Image {img_idx} is missing id or base64 data, skipping")
+                    continue
+                
+                # Save the image to a file
                 image_format = image.get('format', 'png')
                 image_filename = f"{base_name}_page{page_idx + 1}_img{img_idx + 1}.{image_format}"
                 image_path = os.path.join(image_dir, image_filename)
                 
-                # Save image if data is available
-                if image_data:
-                    if image_data.startswith('data:image'):
-                        # Handle base64 encoded data
-                        try:
-                            # Extract the base64 string after the comma
-                            b64_data = image_data.split(',', 1)[1]
-                            with open(image_path, 'wb') as img_file:
-                                img_file.write(base64.b64decode(b64_data))
-                            print(f"  Saved image to {image_path}")
-                        except Exception as e:
-                            print(f"  Error saving image: {str(e)}")
-                    elif image_data.startswith('http'):
-                        # Handle image URL
-                        try:
-                            urllib.request.urlretrieve(image_data, image_path)
-                            print(f"  Downloaded image from URL to {image_path}")
-                        except Exception as e:
-                            print(f"  Error downloading image: {str(e)}")
+                try:
+                    # Handle base64 data
+                    if image_base64.startswith('data:image'):
+                        # Extract the base64 string after the comma
+                        b64_data = image_base64.split(',', 1)[1]
                     else:
-                        print(f"  Unknown image data format, skipping")
-                
-                # Get image description if available
-                image_description = image.get('description', '')
-                if not image_description:
-                    image_description = image.get('alt_text', '')
-                if not image_description:
-                    image_description = f"Image {img_idx + 1} on page {page_idx + 1}"
-                
-                # Create markdown reference to the image
-                image_ref = f"\n\n![{image_description}](./{os.path.basename(image_dir)}/{image_filename})\n\n"
-                
-                # For now, just append the image reference at the end of the page content
-                page_markdown += image_ref
+                        # If it's already just the base64 data without prefix
+                        b64_data = image_base64
+                        
+                    # Decode and save the image
+                    with open(image_path, 'wb') as img_file:
+                        img_file.write(base64.b64decode(b64_data))
+                    print(f"  Saved image to {image_path}")
+                    
+                    # Add an entry to the dictionary mapping image ID to the local file path
+                    # This will be used to replace the image references in the markdown
+                    image_data_dict[image_id] = f"./{os.path.basename(image_dir)}/{image_filename}"
+                    
+                except Exception as e:
+                    print(f"  Error saving image: {str(e)}")
+            
+            # Replace image references in the markdown
+            for img_id, img_path in image_data_dict.items():
+                # Format expected by the Mistral OCR API is ![id](id)
+                page_markdown = page_markdown.replace(f"![{img_id}]({img_id})", f"![Image {img_id}]({img_path})")
         
-        # Add page markdown to overall content
-        content += page_markdown + "\n\n"
+        # Add processed page markdown to the content list
+        all_content.append(page_markdown)
+    
+    # Join all pages with double newlines
+    content = "\n\n".join(all_content)
     
     return content
 
@@ -135,7 +140,8 @@ def process_pdf_with_ocr(pdf_path):
             document={
                 "type": "document_url",
                 "document_url": signed_url.url,
-            }
+            },
+            include_image_base64=True  # Enable base64 image extraction
         )
         
         # Convert the OCR response to a dictionary if it isn't already
@@ -223,7 +229,8 @@ def process_image_with_ocr(image_path):
             document={
                 "type": "image_url",
                 "image_url": signed_url.url,
-            }
+            },
+            include_image_base64=True  # Enable base64 image extraction
         )
         
         # Convert the OCR response to a dictionary
