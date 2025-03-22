@@ -95,6 +95,7 @@ The Mistral OCR API returns a JSON structure with the following key elements:
   "usage_info": {"pages_processed": 1, "doc_size_bytes": 199841}
 }
 ```
+Base64 data of images are removed because converted images are already stored separately. This make JSON cleaner and smaller.
 
 ## Limitations
 
