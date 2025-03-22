@@ -76,12 +76,16 @@ The Mistral OCR API returns a JSON structure with the following key elements:
   "pages": [
     {
       "index": 0,
-      "markdown": "Extracted text in markdown format...",
+      "markdown": "# Document Title\n\nSample text content with ![img-0.jpeg](img-0.jpeg) image reference.",
       "images": [
         {
-          "data": "base64 or URL data",
-          "format": "png",
-          "description": "Optional image description"
+          "id": "img-0.jpeg",
+          "top_left_x": 253,
+          "top_left_y": 473,
+          "bottom_right_x": 1630,
+          "bottom_right_y": 1792,
+          "image_base64": "[BASE64_DATA_REMOVED]",
+          "format": "jpeg"
         }
       ],
       "dimensions": {"dpi": 200, "height": 5139, "width": 2387}
