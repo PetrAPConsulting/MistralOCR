@@ -174,10 +174,23 @@ def process_pdf_with_ocr(pdf_path):
             md_file.write(content.strip())
             
         # Optionally save the full JSON response for reference
+        # But first strip the base64 image data to reduce file size
         json_output_path = f"{base_name}_full.json"
+        
+        # Create a copy of the response dictionary to modify
+        clean_response = json.loads(json.dumps(response_dict))
+        
+        # Strip out the base64 image data from the copy
+        for page in clean_response.get('pages', []):
+            for image in page.get('images', []):
+                if 'image_base64' in image:
+                    # Replace the base64 data with a placeholder
+                    image['image_base64'] = "[BASE64_DATA_REMOVED]"
+        
+        # Save the modified JSON
         with open(json_output_path, "w", encoding="utf-8") as json_file:
-            json.dump(response_dict, json_file, indent=2)
-        print(f"  Full OCR response saved to {json_output_path}")
+            json.dump(clean_response, json_file, indent=2)
+        print(f"  Full OCR response saved to {json_output_path} (without base64 image data)")
         
         return True
         
@@ -257,10 +270,23 @@ def process_image_with_ocr(image_path):
             md_file.write(content.strip())
             
         # Optionally save the full JSON response for reference
+        # But first strip the base64 image data to reduce file size
         json_output_path = f"{base_name}_full.json"
+        
+        # Create a copy of the response dictionary to modify
+        clean_response = json.loads(json.dumps(response_dict))
+        
+        # Strip out the base64 image data from the copy
+        for page in clean_response.get('pages', []):
+            for image in page.get('images', []):
+                if 'image_base64' in image:
+                    # Replace the base64 data with a placeholder
+                    image['image_base64'] = "[BASE64_DATA_REMOVED]"
+        
+        # Save the modified JSON
         with open(json_output_path, "w", encoding="utf-8") as json_file:
-            json.dump(response_dict, json_file, indent=2)
-        print(f"  Full OCR response saved to {json_output_path}")
+            json.dump(clean_response, json_file, indent=2)
+        print(f"  Full OCR response saved to {json_output_path} (without base64 image data)")
         
         return True
         
